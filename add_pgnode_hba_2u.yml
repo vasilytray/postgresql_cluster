@@ -9,18 +9,18 @@
 
   tasks:
     - name: Check if IP already exists in pg_hba.conf for all user
-      shell: grep "all.*{{ new_ip_address }}/32" /etc/postgresql/15/main/pg_hba.conf
+      shell: grep "all.*{{ new_ip_address }}/32" {{pg_hba_file}}
       register: all_user_check
       ignore_errors: true
 
     - name: Check if IP already exists in pg_hba.conf for replicator user
-      shell: grep "replicator.*{{ new_ip_address }}/32" /etc/postgresql/15/main/pg_hba.conf
+      shell: grep "replicator.*{{ new_ip_address }}/32" {{pg_hba_file}}
       register: replicator_user_check
       ignore_errors: true
 
     - name: Add new IP to pg_hba.conf for all user
       lineinfile:
-        path: /etc/postgresql/15/main/pg_hba.conf
+        path: "{{pg_hba_file}}"
         regexp: "^host.*all.*all.*"
         insertbefore: "^# Allow replication"
         line: "  host      all\t\t\t     all\t\t      {{ new_ip_address }}/32         md5"
@@ -29,7 +29,7 @@
 
     - name: Add new IP to pg_hba.conf for replicator user
       lineinfile:
-        path: /etc/postgresql/15/main/pg_hba.conf
+        path: "{{pg_hba_file}}"
         regexp: "^host.*replication.*replicator.*"
         line: "  host      replication\t\t     replicator\t\t      {{ new_ip_address }}/32         md5"
         state: present
