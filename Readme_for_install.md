@@ -184,4 +184,6 @@ Are you sure you want to switchover cluster postgres-cluster, demoting current l
 1. зададим переменные /vars/add_newnode.yml
 new_ip_address: "192.168.171.4"
 pg_hba_file: "/etc/postgresql/{{postgresql_version}}/main/pg_hba.conf"
-запустим плейбук
+2. запустим плейбук ansible-playbook add_pgnode_hba_2u.yml
+> ansible-playbook add_pgnode_hba_2u.yml
+# для передачи переменной в строковом формате JSON ansible-playbook add_pgnode_hba_2u.yml --extra-vars '{"new_ip_address":"192.168.171.4"}'
