@@ -1,0 +1,4 @@
+---
+# Connection settings
+ansible_user: postgres
+ansible_ssh_pass: secretpassword
