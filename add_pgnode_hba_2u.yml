@@ -1,0 +1,47 @@
+# для передачи переменной в строковом формате JSON ansible-playbook add_pgnode_hba_2u.yml --extra-vars '{"new_ip_address":"192.168.171.4"}'
+---
+- hosts: postgres_cluster
+ # vars:
+ #   new_ip_address: "192.168.171.4"
+ #   pg_hba_file: "/etc/postgresql/15/main/pg_hba.conf"
+  vars_files:
+    - vars/add_newnode.yml
+
+  tasks:
+    - name: Check if IP already exists in pg_hba.conf for all user
+      shell: grep "all.*{{ new_ip_address }}/32" /etc/postgresql/15/main/pg_hba.conf
+      register: all_user_check
+      ignore_errors: true
+
+    - name: Check if IP already exists in pg_hba.conf for replicator user
+      shell: grep "replicator.*{{ new_ip_address }}/32" /etc/postgresql/15/main/pg_hba.conf
+      register: replicator_user_check
+      ignore_errors: true
+
+    - name: Add new IP to pg_hba.conf for all user
+      lineinfile:
+        path: /etc/postgresql/15/main/pg_hba.conf
+        regexp: "^host.*all.*all.*"
+        insertbefore: "^# Allow replication"
+        line: "  host      all\t\t\t     all\t\t      {{ new_ip_address }}/32         md5"
+        state: present
+      when: all_user_check.rc != 0
+
+    - name: Add new IP to pg_hba.conf for replicator user
+      lineinfile:
+        path: /etc/postgresql/15/main/pg_hba.conf
+        regexp: "^host.*replication.*replicator.*"
+        line: "  host      replication\t\t     replicator\t\t      {{ new_ip_address }}/32         md5"
+        state: present
+      when: replicator_user_check.rc != 0
+
+    - name: Restart PostgreSQL
+      systemd:
+        name: postgresql
+        state: restarted
+
+  handlers:
+    - name: Restart PostgreSQL
+      systemd:
+        name: postgresql
+        state: restarted

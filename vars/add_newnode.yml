@@ -1,0 +1,12 @@
+# PostgreSQL variables
+postgresql_version: "15"
+
+# add new IP in pg_hba.conf ore IP for remoove line in pg_hba.conf vars:
+
+# В этом файле мы можем задать значения для переменных pg_hba_ip (IP-адрес) 
+# и pg_hba_file (путь к файлу pg_hba.conf). 
+new_ip_address: "192.168.171.4"
+pg_hba_file: "/etc/postgresql/{{postgresql_version}}/main/pg_hba.conf"
+
+#for remove IP from pg_hba.conf
+pg_hba_ip: "192.168.171.4"

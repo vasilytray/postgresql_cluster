@@ -1,0 +1,54 @@
+# Вот пример кода play-book для Ansible, который будет искать и удалять строки 
+# с заданным IP-адресом в файле pg_hba.conf, используя переменную pg_hba_ip из файла vars/main.yml:
+# для передачи переменной в строковом формате JSON ansible-playbook rm_IP_hbai.yml --extra-vars '{"pg_hba_ip":"192.168.171.4"}'
+---
+- hosts: postgres_cluster
+  #vars:
+  #  pg_hba_ip: "192.168.171.5"
+  #  pg_hba_file: "/etc/postgresql/15/main/pg_hba.conf"
+  vars_files:
+    - vars/add_newnode.yml
+  tasks:
+    - name: Check if IP exists in pg_hba.conf for all user
+      shell: grep "all.*{{ pg_hba_ip }}/32" {{ pg_hba_file }}
+      register: ip_check
+      ignore_errors: true
+
+    - name: Remove IP from pg_hba.conf
+      lineinfile:
+        path: "{{ pg_hba_file }}"
+        regexp: "all.*{{ pg_hba_ip }}/32"
+        state: absent
+      when: ip_check.rc == 0
+      register: remove_ip_all
+
+    - name: Check if IP exists in pg_hba.conf for replicator user
+      shell: grep "replicator.*{{ pg_hba_ip }}/32" {{ pg_hba_file }}
+      register: replicator_check
+      ignore_errors: true
+
+    - name: Remove IP from pg_hba.conf for replicator user
+      lineinfile:
+        path: "{{ pg_hba_file }}"
+        regexp: "replicator.*{{ pg_hba_ip }}/32"
+        state: absent
+      when: replicator_check.rc == 0
+      register: remove_ip_replicator
+
+    - name: Restart PostgreSQL
+      systemd:
+        name: postgresql
+        state: restarted
+
+  handlers:
+    - name: Restart PostgreSQL
+      systemd:
+        name: postgresql
+        state: restarted
+      register: restart_postgresql
+
+# Здесь мы используем переменную pg_hba_ip из файла vars/main.yml для задания IP-адреса, 
+# который мы хотим удалить из файла pg_hba.conf. Мы используем модуль shell для выполнения 
+# поиска в файле pg_hba.conf и регистрируем вывод в переменной ip_check и replicator_check. 
+#Затем мы используем модуль lineinfile для удаления строк с заданным IP-адресом, если он найден. 
+#Наконец, мы используем модуль systemd для перезапуска PostgreSQL после удаления строк.
