@@ -12,23 +12,22 @@
 192.168.171.1
 192.168.171.2
 192.168.171.3
-#192.168.171.4
+192.168.171.4
 
 # if dcs_exists: false and dcs_type: "consul"
 [consul_instances]  # recommendation: 3 or 5-7 nodes
 192.168.171.1 consul_node_role=server consul_bootstrap_expect=true consul_datacenter=dc1
 192.168.171.2 consul_node_role=server consul_bootstrap_expect=true consul_datacenter=dc1
 192.168.171.3 consul_node_role=server consul_bootstrap_expect=true consul_datacenter=dc1
-#192.168.171.4 consul_node_role=server consul_bootstrap_expect=true consul_datacenter=dc1
-#10.128.64.144 consul_node_role=client consul_datacenter=dc1
-#10.128.64.145 consul_node_role=client consul_datacenter=dc2
+192.168.171.4 consul_node_role=server consul_bootstrap_expect=true consul_datacenter=dc1
+
 
 # if with_haproxy_load_balancing: true
 [balancers]
 192.168.171.1
 192.168.171.2
 192.168.171.3
-#192.168.171.4
+192.168.171.4
 
 # PostgreSQL nodes
 192.168.171.3 hostname=pgnode03 postgresql_exists='false'
@@ -36,7 +35,7 @@
 [replica]
 192.168.171.2 hostname=pgnode02 postgresql_exists='false'
 192.168.171.1 hostname=pgnode01 postgresql_exists='false'
-# 192.168.171.4 hostname=pgnode04 postgresql_exists='false'
+192.168.171.4 hostname=pgnode04 postgresql_exists='false'
 
 [postgres_cluster:children]
 master
@@ -53,7 +52,7 @@ ansible_ssh_port='22'
 ansible_user='root'
 ansible_ssh_pass='secretpassword'  # "sshpass" package is required for use "ansible_ssh_pass"
 #ansible_ssh_private_key_file=
-#ansible_python_interpreter='/usr/bin/python3'  # is required for use python3
+ansible_python_interpreter='/usr/bin/python3'  # is required for use python3
 
 [pgbackrest:vars]
 ansible_user='postgres'

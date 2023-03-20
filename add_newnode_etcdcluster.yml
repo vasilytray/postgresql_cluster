@@ -1,0 +1,90 @@
+- name: Add new node to etcd cluster
+  hosts: 192.168.171.104
+  become: true
+  vars_files:
+    - vars/main.yml
+    - vars/system.yml
+  vars:
+    etcd_user: etcd
+    etcd_config_template: /roles/etcd/templates/etcd.conf_new.j2
+    etcd_service_config_template: /roles/etcd/templates/etcd.service_new.j2
+  tasks:
+    - name: Install etcd
+      apt:
+        name: etcd
+        state: present
+
+    - name: Add etcd user
+      user:
+        name: etcd
+        shell: /usr/sbin/nologin
+        home: "{{ etcd_data_dir }}"
+      tags: etcd, etcd_conf
+
+    - name: Create etcd conf directory
+      file:
+        path: /etc/etcd
+        state: directory
+      tags: etcd, etcd_conf
+    
+    - name: Create etcd data directory
+      file:
+        path: "{{ etcd_data_dir }}"
+        state: directory
+        owner: etcd
+        mode: 0700
+      tags: etcd, etcd_conf
+    
+    - name: Generate conf file "/etc/etcd/etcd.conf"
+      template:
+        src: "{{ etcd_config_template }}"
+        dest: "/etc/etcd.conf"
+        owner: root
+        group: root
+        mode: 0644
+      tags: etcd, etcd_conf
+
+    - name: Add new node to etcd cluster
+      command: "etcdctl member add {{ inventory_hostname }} --peer-urls=http://{{ inventory_hostname }}:2380"
+      become_user: "{{ etcd_user }}"
+      register: add_member_output
+      ignore_errors: yes
+    
+    - name: Enable and start etcd service
+      systemd:
+        daemon_reload: true
+        name: etcd
+        enabled: true
+        state: started
+      tags: etcd, etcd_start
+
+    - name: Wait for port 2379 to become open on the host
+      wait_for:
+        port: 2379
+        host: 127.0.0.1
+        state: started
+        timeout: 120
+        delay: 10
+      ignore_errors: false
+      tags: etcd, etcd_start
+
+    - block:
+        - name: Wait until the etcd cluster is healthy
+          command: >
+            /usr/local/bin/etcdctl endpoint health
+            --endpoints=http://{{ inventory_hostname }}:2379
+          register: etcd_health_result
+          until: "'is healthy' in etcd_health_result.stdout"
+          retries: 10
+          delay: 10
+          changed_when: false
+          ignore_errors: false
+
+        - name: cluster health
+          debug:
+            msg: "{{ etcd_health_result.stdout }}"
+      tags: etcd, etcd_start, etcd_status
+
+    - name: Print etcdctl output
+      debug:
+        var: add_member_output.stdout_lines

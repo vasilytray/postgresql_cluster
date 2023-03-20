@@ -187,3 +187,48 @@ pg_hba_file: "/etc/postgresql/{{postgresql_version}}/main/pg_hba.conf"
 2. запустим плейбук ansible-playbook add_pgnode_hba_2u.yml
 > ansible-playbook add_pgnode_hba_2u.yml
 # для передачи переменной в строковом формате JSON ansible-playbook add_pgnode_hba_2u.yml --extra-vars '{"new_ip_address":"192.168.171.4"}'
+
+# __ если что то пошло не так и надо удалить IP из pg_hba.conf___
+> ansible-playbook remove_IP_hbai.yml
+# или для передачи переменной IP в строковом формате JSON ansible-playbook remove_IP_hbai.yml --extra-vars '{"pg_hba_ip":"192.168.171.5"}'
+
+3. Шаги для добавления нового узла:
+Перейдите в каталог playbook
+Отредактируйте файл инвентаря
+> nano inventory
+Укажите ip адрес одной из нод кластера в группе [master], и новой ноды (которую вы хотите добавить) в группе [replica].
+
+
+Отредактируйте файлы переменных
+Переменные, которые должны быть одинаковыми на всех узлах кластера:
+with_haproxy_load_balancing,  postgresql_version, postgresql_data_dir,  postgresql_conf_dir (Debian.yml).
+# Скопируем на новый хост публичный ключ
+# ____Для этого понадобится root пароль от новой ноды_____
+> ssh-copy-id root@<ip server4> # потребуется пароль от ssh server4
+и проверяем подключение к серверам:
+> ssh 'root@<ip server4>'
+Если все окей проверим как видит сервера 
+вернемся обратно в деррикторию /postgresql_cluster
+и проверим подключение ansible
+> ansible all -m ping
+
+#  На новом хосте установим locale
+> sudo dpkg-reconfigure locales
+установим  следующие локали en_US.UTF-8 и ru_RU.UTF-8
+и обновим основную 
+> sudo update-locale LANG=en_US.UTF8
+перезагрузим сервер
+> sudo shutdown -r now
+можем проверить локаль
+> sudo locale
+Сделаем upgrade на всех узлах
+> sudo apt upgrade
+Установим на всех узлах Python
+> sudo apt install -y python3
+> sudo apt install python3-pip
+Установим пакет python3-psycopg2
+> sudo apt-get install python3-psycopg2
+
+Запустите книгу:
+ansible-playbook add_pgnode.yml
+
