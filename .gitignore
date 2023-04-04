@@ -1,5 +1,6 @@
 .DS_Store
 .envir
+.inventory
 readme my.md
 /group_vars/all_my.yml
 /group_vars/pgbackrest_my.yml

@@ -6,11 +6,13 @@
     - vars/main.yml
     - vars/system.yml
   vars:
+    etcd_user: etcd
     etcd_config_template: /roles/etcd/templates/etcd.conf_new.j2
+    etcd_service_config_template: /roles/etcd/templates/etcd.service_new.j2
     etcd_peer_port: 2380
     etcd_client_port: 2379
-    # etcd_data_dir: /var/lib/etcd/
-    # etcd_cluster_token: my-etcd-cluster
+    etcd_data_dir: /var/lib/etcd/
+    etcd_cluster_token: "{{ etcd_cluster_name }}"
     etcd_cluster_state: existing
     etcd_cluster_nodes: "[{\"name\": \"pgnode01\", \"ip\": \"192.168.171.101\"}, {\"name\": \"pgnode02\", \"ip\": \"192.168.171.102\"}, {\"name\": \"pgnode03\", \"ip\": \"192.168.171.103\"}]"
     etcd_tls_cert_file: /etc/etcd/server.crt
@@ -22,59 +24,99 @@
 # В следующем таске мы устанавливаем etcd на новую ноду:
 
   tasks:
+    
+# Конфигурация etcd
+    
+    - name: Create etcd conf directory
+      file:
+        path: /etc/etcd
+        state: directory
+      tags: etcd, etcd_conf
+    
+    - name: Create etcd data directory
+      file:
+        path: "{{ etcd_data_dir }}"
+        state: directory
+        owner: etcd
+        mode: 0700
+      tags: etcd, etcd_conf
+    
+    - name: Generate conf file "/etc/etcd/etcd.conf"
+      template:
+        src: "{{ etcd_config_template }}"
+        dest: "/etc/etcd.conf"
+        owner: root
+        group: root
+        mode: 0644
+      tags: etcd, etcd_conf
+
     # Установка etcd
     - name: Install etcd
       apt:
         name: etcd
         update_cache: yes
-        state: latest
-# Конфигурация etcd
+        state: present
+
+    - name: Add new node to etcd cluster
+      command: "etcdctl member add {{ inventory_hostname }} --peer-urls=http://{{ inventory_hostname }}:2380"
+      become_user: "{{ etcd_user }}"
+      register: add_member_output
+      ignore_errors: yes
 
 # Затем мы создаём конфигурационный файл etcd.service с помощью модуля copy, содержащий настройки для текущей ноды:
 
     # Создание конфигурационного файла etcd.service
     - name: Create systemd configuration for etcd
-      copy:
+      template:
+        src: "{{ etcd_service_config_template }}"
         dest: "/etc/systemd/system/etcd.service"
-        content: |
-          [Unit]
-          Description=Etcd Server
-          After=network.target
-
-          [Service]
-          User=root
-          Type=notify
-          ExecStart=/usr/bin/etcd \\
-          --name={{ inventory_hostname }} \\
-          --data-dir={{ etcd_data_dir }} \\
-          --initial-advertise-peer-urls=https://{{ inventory_hostname }}:{{ etcd_peer_port }} \\
-          --listen-peer-urls=https://{{ inventory_hostname }}:{{ etcd_peer_port }} \\
-          --listen-client-urls=https://{{ inventory_hostname }}:{{ etcd_client_port }},http://127.0.0.1:2379 \\
-          --advertise-client-urls=https://{{ inventory_hostname }}:{{ etcd_client_port }} \\
-          --initial-cluster-token={{ etcd_cluster_token }} \\
-          --initial-cluster-state={{ etcd_cluster_state }} \\
-          --initial-cluster="{{ etcd_cluster_nodes }}" \\
-          --client-cert-auth \\
-          --cert-file={{ etcd_tls_cert_file }} \\
-          --key-file={{ etcd_tls_key_file }} \\
-          --trusted-ca-file={{ etcd_tls_ca_file }} \\
-          --peer-client-cert-auth \\
-          --peer-cert-file={{ etcd_tls_cert_file }} \\
-          --peer-key-file={{ etcd_tls_key_file }} \\
-          --peer-trusted-ca-file={{ etcd_tls_ca_file }}
-          Restart=on-failure
-          RestartSec=10s
-
-        # Здесь мы определяем название текущей ноды name, директорию для хранения данных data-dir, 
-        # адреса для общения между нодами initial-advertise-peer-urls и listen-peer-urls, адрес и порт для обслуживания 
-        # клиентов listen-client-urls и advertise-client-urls, токен кластера initial-cluster-token, 
-        # состояние кластера initial-cluster-state и список нод кластера initial-cluster, а также опции для TLS-шифрования общения.
+        owner: root
+        group: root
+        mode: 0644
+      tags: etcd, etcd_conf
 
 # Затем мы запускаем etcd и добавляем сервис в автозагрузку:
-
-    # Запуск etcd
-    - name: Start etcd service
+    - name: Enable and start etcd service
       systemd:
+        daemon_reload: true
         name: etcd
-        enabled: yes
+        enabled: true
         state: started
+      tags: etcd, etcd_start
+
+    - name: Wait for port 2379 to become open on the host
+      wait_for:
+        port: 2379
+        host: 127.0.0.1
+        state: started
+        timeout: 120
+        delay: 10
+      ignore_errors: false
+      tags: etcd, etcd_start
+
+    - block:
+        - name: Wait until the etcd cluster is healthy
+          command: >
+            /usr/local/bin/etcdctl endpoint health
+            --endpoints=http://{{ inventory_hostname }}:2379
+          register: etcd_health_result
+          until: "'is healthy' in etcd_health_result.stdout"
+          retries: 10
+          delay: 10
+          changed_when: false
+          ignore_errors: false
+
+        - name: cluster health
+          debug:
+            msg: "{{ etcd_health_result.stdout }}"
+      tags: etcd, etcd_start, etcd_status
+
+    - name: Print etcdctl output
+      debug:
+        var: add_member_output.stdout_lines
+    # Запуск etcd
+    #- name: Start etcd service
+    #  systemd:
+    #    name: etcd
+    #    enabled: yes
+    #    state: started

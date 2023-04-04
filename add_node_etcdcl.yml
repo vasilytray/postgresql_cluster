@@ -1,0 +1,200 @@
+---
+
+- name: Add new etcd node to the cluster
+  hosts: all
+  become: true
+  vars_files:
+    - vars/main.yml
+    - vars/system.yml
+    - vars/Debian.yml
+
+  tasks:
+    - name: Проверить, установлен ли Etcd
+      shell: which etcd #etcd --version
+      register: etcd_installed
+      ignore_errors: true
+      #failed_when: false
+    - name: Make sure handlers are flushed immediately
+      meta: flush_handlers
+
+    - name: Make sure the unzip/tar packages are present
+      package:
+        name:
+          - unzip
+          - tar
+        state: present
+      register: package_status
+      until: package_status is success
+      delay: 5
+      retries: 3
+      environment: "{{ proxy_env | default({}) }}"
+      tags: etcd, etcd_install
+#    - name: Установить Etcd версии 3.5.7
+#      shell: curl -L https://github.com/etcd-io/etcd/releases/download/v3.5.7/etcd-v3.5.7-linux-amd64.tar.gz -o /tmp/etcd.tar.gz && tar xzvf /tmp/etcd.tar.gz -C /tmp && mv /tmp/etcd-v3.5.7-linux-amd64/etcd* /usr/local/bin/
+      
+#      ignore_errors: true
+#      when: etcd_installed.rc != 0
+
+    - block:  # install etcd package from repo
+        - name: Download "etcd" package
+          get_url:
+            url: "https://github.com/etcd-io/etcd/releases/download/v3.5.7/etcd-v3.5.7-linux-amd64.tar.gz"
+            dest: /tmp/
+            timeout: 90
+            validate_certs: false
+          loop:
+            - "{{ etcd_package_repo }}"
+          environment: "{{ proxy_env | default({}) }}"
+    
+        - name: Extract "etcd" into /tmp
+          unarchive:
+            src: "/tmp/{{ etcd_package_repo | basename }}"
+            dest: /tmp/
+            extra_opts:
+              - --no-same-owner
+            remote_src: true
+    
+        - name: Copy "etcd" and "etcdctl" binary files to /usr/local/bin/
+          copy:
+            src: "/tmp/{{ etcd_package_repo.split('.tar.gz')[0] | basename }}/{{ item }}"
+            dest: /usr/local/bin/
+            mode: u+x,g+x,o+x
+            remote_src: true
+          loop:
+            - etcd
+            - etcdctl
+      when: installation_method == "repo" and etcd_package_repo | length > 0
+      tags: etcd, etcd_install
+    
+    - block:  # install etcd package from file
+        - name: Extract "etcd" into /tmp
+          unarchive:
+            src: "{{ etcd_package_file }}"
+            dest: /tmp/
+            extra_opts:
+              - --no-same-owner
+    
+        - name: Copy "etcd" and "etcdctl" binary files to /usr/local/bin/
+          copy:
+            src: "/tmp/{{ etcd_package_file.split('.tar.gz')[0] | basename }}/{{ item }}"
+            dest: /usr/local/bin/
+            mode: u+x,g+x,o+x
+            remote_src: true
+          loop:
+            - etcd
+            - etcdctl
+      when: installation_method == "file" and etcd_package_file | length > 0
+      tags: etcd, etcd_install
+
+    # Конфигурация etcd
+    - name: Add etcd user
+      user:
+        name: etcd
+        shell: /usr/sbin/nologin
+        home: "/var/lib/etcd"
+      tags: etcd, etcd_conf
+    
+    - name: Create etcd conf directory
+      file:
+        path: /etc/etcd
+        state: directory
+      tags: etcd, etcd_conf
+    
+    - name: Create etcd data directory
+      file:
+        path: "/var/lib/etcd"
+        state: directory
+        owner: etcd
+        mode: 0700
+      tags: etcd, etcd_conf
+
+    - name: Generate conf file "/etc/etcd/etcd.conf"
+      template:
+        src: roles/etcd/templates/etcd.conf.j2
+        dest: /etc/etcd/etcd.conf
+      tags: etcd, etcd_conf
+
+    - name: Copy systemd service file
+      template:
+        src: roles/etcd/templates/etcd.service.j2
+        dest: /etc/systemd/system/etcd.service
+      tags: etcd, etcd_conf
+
+    #- name: Copy etcd configuration file
+    #  template:
+    #    src: /roles/etcd/templates/etcd.conf_new.j2
+    #    dest: /etc/etcd/etcd.conf
+    #    owner: root
+    #    group: root
+    #    mode: 0640
+    #    backup: yes
+#
+    #- name: Copy etcd service file
+    #  template:
+    #    src: /roles/etcd/templates/etcd.service_new.j2
+    #    dest: /etc/systemd/system/etcd.service
+    #    owner: root
+    #    group: root
+    #    mode: 0644
+    #    backup: yes
+    #  notify: Restart etcd service
+
+    - name: Enable and start etcd service
+      systemd:
+        daemon_reload: true
+        name: etcd
+        enabled: true
+        state: started
+      tags: etcd, etcd_start
+
+    - name: Wait for port 2379 to become open on the host
+      wait_for:
+        port: 2379
+        host: 127.0.0.1
+        state: started
+        timeout: 120
+        delay: 10
+      ignore_errors: false
+      tags: etcd, etcd_start
+
+    - block:
+        - name: Wait until the etcd cluster is healthy
+          command: >
+            /usr/local/bin/etcdctl endpoint health
+            --endpoints=http://{{ inventory_hostname }}:2379
+          register: etcd_health_result
+          until: "'is healthy' in etcd_health_result.stdout"
+          retries: 10
+          delay: 10
+          changed_when: false
+          ignore_errors: false
+
+        - name: cluster health
+          debug:
+            msg: "{{ etcd_health_result.stdout }}"
+      tags: etcd, etcd_start, etcd_status
+
+    - name: Print etcdctl output
+      debug:
+        var: add_member_output.stdout_lines
+
+    - name: Add new node to etcd cluster
+      command: etcdctl member add {{ inventory_hostname }} --peer-urls=https://{{ ansible_host }}:2380
+      args:
+        chdir: /etc/etcd
+      register: etcd_member
+
+    - name: Update etcd cluster configuration file
+      lineinfile:
+        path: /etc/etcd/etcd.conf
+        line: "ETCD_INITIAL_CLUSTER={{ etcd_member.stdout }}"
+        state: present
+        regexp: '^(#?\s*ETCD_INITIAL_CLUSTER=).*'
+        backup: yes
+      notify: Restart etcd service
+
+  handlers:
+    - name: Restart etcd service
+      systemd:
+        name: etcd
+        state: restarted

@@ -87,8 +87,11 @@ sudo_users:
 > systemctl status etcd
 > etcdctl endpoint health --cluster
 > etcdctl member list
+# выведем статусы нод кластера не текущий момент !!!
+> ENDPOINTS=$(etcdctl member list | grep -o '[^ ]\+:2379' | paste -s -d,)
+> etcdctl endpoint status --endpoints=$ENDPOINTS -w table
 
-Укажем во конфигах etcd на каждом узле кластера, сто это уже работающий узел
+Укажем во конфигах etcd на каждом узле кластера, что это уже работающий узел
 > nano /etc/etcd/etcd.conf
 ETCD_INITIAL_CLUSTER_STATE="existing"
 сохраним, выйдем и рестартуем etcd
@@ -230,5 +233,4 @@ with_haproxy_load_balancing,  postgresql_version, postgresql_data_dir,  postgres
 > sudo apt-get install python3-psycopg2
 
 Запустите книгу:
-ansible-playbook add_pgnode.yml
-
+ansible-playbook add_pgnode.

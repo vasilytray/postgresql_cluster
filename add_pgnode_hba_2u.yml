@@ -4,6 +4,8 @@
  # vars:
  #   new_ip_address: "192.168.171.4"
  #   pg_hba_file: "/etc/postgresql/15/main/pg_hba.conf"
+  become: true
+  become_method: sudo
   vars_files:
     - vars/add_newnode.yml
 
