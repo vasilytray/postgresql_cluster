@@ -9,3 +9,4 @@ readme my.md
 =======
 /vars/main_my.yml
 >>>>>>> 4ec561c (modified .gitignore)
+/vars/.main_my.yml
