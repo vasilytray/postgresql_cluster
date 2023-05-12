@@ -13,10 +13,8 @@ API VERSION:
 
 COMMANDS:
 
-        alarm disarm            Disarms all alarms
-        
+        alarm disarm            Disarms all alarms        
         alarm list              Lists all alarms
-        
         auth disable            Disables authentication
         auth enable             Enables authentication
         auth status             Returns authentication status
@@ -66,6 +64,7 @@ COMMANDS:
         watch                   Watches events stream on keys or prefixes
 
 OPTIONS:
+
       --cacert=""                               verify certificates of TLS-enabled secure servers using this CA bundle
       --cert=""                                 identify secure client using this TLS certificate file
       --command-timeout=5s                      timeout for short running command (excluding dial timeout)
