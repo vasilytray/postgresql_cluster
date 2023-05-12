@@ -1,4 +1,18 @@
- alarm disarm            Disarms all alarms
+ NAME:
+        etcdctl - A simple command line client for etcd3.
+
+USAGE:
+        etcdctl [flags]
+
+VERSION:
+        3.5.7
+
+API VERSION:
+        3.5
+
+
+COMMANDS:
+        alarm disarm            Disarms all alarms
         alarm list              Lists all alarms
         auth disable            Disables authentication
         auth enable             Enables authentication
