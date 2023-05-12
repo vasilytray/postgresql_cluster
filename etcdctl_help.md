@@ -12,8 +12,11 @@ API VERSION:
 
 
 COMMANDS:
+
         alarm disarm            Disarms all alarms
+        
         alarm list              Lists all alarms
+        
         auth disable            Disables authentication
         auth enable             Enables authentication
         auth status             Returns authentication status
