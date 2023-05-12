@@ -4,9 +4,4 @@
 readme my.md
 /group_vars/all_my.yml
 /group_vars/pgbackrest_my.yml
-<<<<<<< HEAD
-/vars/main_my.yml
-=======
-/vars/main_my.yml
->>>>>>> 4ec561c (modified .gitignore)
 /vars/.main_my.yml
