@@ -70,10 +70,14 @@ OPTIONS:
       --command-timeout=5s                      timeout for short running command (excluding dial timeout)
       --debug[=false]                           enable client-side debug logging
       --dial-timeout=2s                         dial timeout for client connections
-  -d, --discovery-srv=""                        domain name to query for SRV records describing cluster endpoints
+      
+  -d, 
+      --discovery-srv=""                        domain name to query for SRV records describing cluster endpoints
       --discovery-srv-name=""                   service name to query when using DNS discovery
       --endpoints=[127.0.0.1:2379]              gRPC endpoints
-  -h, --help[=false]                            help for etcdctl
+      
+  -h, 
+      --help[=false]                            help for etcdctl
       --hex[=false]                             print byte strings as hex encoded strings
       --insecure-discovery[=true]               accept insecure SRV records describing cluster endpoints
       --insecure-skip-tls-verify[=false]        skip server certificate verification (CAUTION: this option should be enabled only for testing purposes)
@@ -83,4 +87,5 @@ OPTIONS:
       --key=""                                  identify secure client using this TLS key file
       --password=""                             password for authentication (if this option is used, --user option shouldn't include password)
       --user=""                                 username[:password] for authentication (prompt if password is not supplied)
-  -w, --write-out="simple"                      set the output format (fields, json, protobuf, simple, table)
+  -w, 
+      --write-out="simple"                      set the output format (fields, json, protobuf, simple, table)
