@@ -5,3 +5,8 @@ readme my.md
 /group_vars/all_my.yml
 /group_vars/pgbackrest_my.yml
 /vars/.main_my.yml
+/vars/add_new_ip.yml
+readme_for_install.md
+add_IP_hba_2u.yml
+cluster_managment.md
+/vars/Copy of main.yml

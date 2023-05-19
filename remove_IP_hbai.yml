@@ -7,7 +7,7 @@
   #  pg_hba_ip: "192.168.171.5"
   #  pg_hba_file: "/etc/postgresql/15/main/pg_hba.conf"
   vars_files:
-    - vars/add_newnode.yml
+    - vars/add_new_ip.yml
   tasks:
     - name: Check if IP exists in pg_hba.conf for all user
       shell: grep "all.*{{ pg_hba_ip }}/32" {{ pg_hba_file }}
