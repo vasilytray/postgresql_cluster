@@ -183,7 +183,7 @@ Are you sure you want to switchover cluster postgres-cluster, demoting current l
 
 # _____ Добавляем в кластер ноды____
 # __Подготовим ноды к расширению кластера__
-Нам надо добавить новый узел или подсеть в pg_hba.conf на всех нодах кластера
+Нам надо добавить новый узел или подсеть в ba.conf на всех нодах кластера
 1. зададим переменные /vars/add_newnode.yml
 new_ip_address: "192.168.171.4"
 pg_hba_file: "/etc/postgresql/{{postgresql_version}}/main/pg_hba.conf"
