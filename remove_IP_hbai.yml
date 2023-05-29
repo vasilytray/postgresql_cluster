@@ -10,30 +10,30 @@
     - vars/add_new_ip.yml
   tasks:
     - name: Check if IP exists in pg_hba.conf for all user
-      shell: grep "all.*{{ pg_hba_ip }}/32" {{ pg_hba_file }}
+      shell: grep "all.*{{ new_ip_address }}/32" {{ pg_hba_file }}
       register: ip_check
       ignore_errors: true
 
     - name: Remove IP from pg_hba.conf
       lineinfile:
         path: "{{ pg_hba_file }}"
-        regexp: "all.*{{ pg_hba_ip }}/32"
+        regexp: "all.*{{ new_ip_address }}/32"
         state: absent
       when: ip_check.rc == 0
       register: remove_ip_all
 
-    - name: Check if IP exists in pg_hba.conf for replicator user
-      shell: grep "replicator.*{{ pg_hba_ip }}/32" {{ pg_hba_file }}
-      register: replicator_check
+    - name: Check if IP exists in pg_hba.conf for new user
+      shell: grep "{{ new_pguser }}.*{{ new_ip_address }}/32" {{ pg_hba_file }}
+      register: new_user_check
       ignore_errors: true
 
-    - name: Remove IP from pg_hba.conf for replicator user
+    - name: Remove IP from pg_hba.conf for new_user
       lineinfile:
         path: "{{ pg_hba_file }}"
-        regexp: "replicator.*{{ pg_hba_ip }}/32"
+        regexp: "{{ new_pguser }}.*{{ new_ip_address }}/32"
         state: absent
-      when: replicator_check.rc == 0
-      register: remove_ip_replicator
+      when: new_user_check.rc == 0
+      register: remove_ip_new_user
 
     - name: Restart PostgreSQL
       systemd:
@@ -47,7 +47,7 @@
         state: restarted
       register: restart_postgresql
 
-# Здесь мы используем переменную pg_hba_ip из файла vars/main.yml для задания IP-адреса, 
+# Здесь мы используем переменную new_ip_address из файла vars/main.yml для задания IP-адреса, 
 # который мы хотим удалить из файла pg_hba.conf. Мы используем модуль shell для выполнения 
 # поиска в файле pg_hba.conf и регистрируем вывод в переменной ip_check и replicator_check. 
 #Затем мы используем модуль lineinfile для удаления строк с заданным IP-адресом, если он найден. 
